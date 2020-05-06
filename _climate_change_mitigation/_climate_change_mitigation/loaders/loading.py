@@ -3,8 +3,8 @@ import pandas as pd
 
 #read Data:
 
-df1 = pd.read_pickle("C:/Users/test/_climate_change_mitigation/data/raw/immode_Berlin.pkl")
-df2 = pd.read_pickle("C:/Users/test/_climate_change_mitigation/data/raw/immode_Berlin2.pkl")
+df1 = pd.read_pickle("C:/Users/test/Documents/GitHub/bachelorarbeit/_climate_change_mitigation/data/raw/immode_Berlin.pkl")
+df2 = pd.read_pickle("C:/Users/test/Documents/GitHub/bachelorarbeit/_climate_change_mitigation/data/raw/immode_Berlin2.pkl")
 
 #Concat
 df = pd.concat([df1,df2])
@@ -38,4 +38,4 @@ df = df.reset_index()
 df = df.drop(['index','level_0'], axis = 1)
 
 #save:
-df.to_csv("C:/Users/test/_climate_change_mitigation/data/interim/berlin.csv")
+df.to_csv("C:/Users/test/Documents/GitHub/bachelorarbeit/_climate_change_mitigation/data/interim/berlin.csv")

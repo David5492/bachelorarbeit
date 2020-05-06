@@ -5,7 +5,7 @@ from datetime import datetime
 from scipy import stats
 
 # Read data:
-df = pd.read_csv("C:/Users/test/_climate_change_mitigation/data/interim/berlin.csv", na_values=['nan', np.nan])
+df = pd.read_csv("C:/Users/test/Documents/GitHub/bachelorarbeit/_climate_change_mitigation/data/interim/berlin.csv", na_values=['nan', np.nan])
 df = df.drop(['Unnamed: 0'], axis=1)
 
 
@@ -293,6 +293,6 @@ df_num_imputed_clean_all = df_num_imputed_clean_all.reset_index().drop(['index']
 
 
 # Save clean and partially imputed data:
-df_num_imputed_clean_all.to_csv("C:/Users/test/_climate_change_mitigation/data/processed/berlin_num_imputed_clean.csv", index = False)
+df_num_imputed_clean_all.to_csv("C:/Users/test/Documents/GitHub/bachelorarbeit/_climate_change_mitigation/data/processed/berlin_num_imputed_clean.csv", index = False)
 print(df.info())
 print(df.energy_certificate_type.value_counts())
