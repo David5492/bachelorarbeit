@@ -3,6 +3,9 @@ import pandas as pd
 import re
 from datetime import datetime
 from scipy import stats
+from datetime import datetime
+
+start = datetime.now()
 
 # Read data:
 df = pd.read_csv("C:/Users/test/Documents/GitHub/bachelorarbeit/_climate_change_mitigation/data/interim/berlin.csv", na_values=['nan', np.nan])
@@ -257,17 +260,17 @@ df.replace('nan',np.nan, inplace=True)
 
 # Categorials, Numericals und reiner Text identifizieren (by hand)
 
-text = ['description_misc','description_clear','equipment_clear']
+text = ['description_misc','description_clear','equipment_clear','description_location']
 
 categorials = ['type','pets','condition','quality_of_appliances',
                 'heating_type','energy_certificate_type','ground_plan',
                 'energy_sources','parking_kind','hot_water_included',
                 'city_code']
 
-numericals = ['rent','utilities_cost','heating_cost','cost_total',
+numericals = ['energy_consumption','rent','utilities_cost','heating_cost','cost_total',
                 'area','rooms','bedrooms','bathrooms','year_built',
                 'last_renovated','latitude','longitude','floor_act',
-                'floor_max','energy_consumption','parking_spaces']
+                'floor_max','parking_spaces']
 
 
 # Fillna w/ median & Kill numeric outliers: 
@@ -292,7 +295,77 @@ df_num_imputed_clean_all[numericals] = df_num_imputed_clean_nums[numericals]
 df_num_imputed_clean_all = df_num_imputed_clean_all.reset_index().drop(['index'], axis=1)
 
 
-# Save clean and partially imputed data:
-df_num_imputed_clean_all.to_csv("C:/Users/test/Documents/GitHub/bachelorarbeit/_climate_change_mitigation/data/processed/berlin_num_imputed_clean.csv", index = False)
-print(df.info())
-print(df.energy_certificate_type.value_counts())
+# Save clean and partially imputed data for EDA:
+df_num_imputed_clean_all.to_csv("C:/Users/test/Documents/GitHub/bachelorarbeit/_climate_change_mitigation/data/processed/berlin_num_imputed_clean_EDA.csv", index = False)
+
+# =========================
+
+
+# Further data prepping for modelling
+
+
+import string
+from nltk.corpus import stopwords
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import TfidfTransformer
+# import numpy as np
+# import pandas as pd
+# nltk.download()
+
+# categorials, numericals & text are already defined
+
+# create dummie_df 
+df_categorials_dummies = pd.get_dummies(df[categorials])
+
+
+# create num_df 
+df_num = df[numericals]
+
+
+# create NLP_df
+
+df_text = df[text].fillna('XXX') # nur testweise
+
+def text_process(annonce):
+    """
+    Takes in a string of text, then performs the following:
+    1. Remove all punctuation
+    2. Remove all stopwords
+    3. Returns a list of the cleaned text
+    """
+    # Check characters to see if they are in punctuation
+    nopunc = [char for char in annonce if char not in string.punctuation]
+
+    # Join the characters again to form the string.
+    nopunc = ''.join(nopunc)
+    
+    # Now just remove any stopwords
+    return [word for word in nopunc.split() if word.lower() not in stopwords.words('german')]
+
+# All cells of text in one col:
+df_text['all_cols'] = df_text.iloc[:,1:].apply(lambda x: ''.join(x), axis=1)
+
+# strings to token integer counts #Start: 19:21 Ziel (ca) 19:38
+bow_transformer = CountVectorizer(analyzer=text_process, max_df=0.99, min_df=0.01, max_features = 250).fit(df_text['all_cols']) 
+
+#transform all annoces:
+annoces_bow = bow_transformer.transform(df_text['all_cols'])
+
+# tfidf-transformer:
+tfidf_transformer = TfidfTransformer().fit(annoces_bow)
+
+# transform the bow:
+annonces_tfidf = tfidf_transformer.transform(annoces_bow)
+
+# transform sparse matrix to pd.DataFrame
+df_former_sparse = pd.DataFrame.sparse.from_spmatrix(annonces_tfidf)
+
+# concat all sub-dfs
+df_all = pd.concat([df_num, df_categorials_dummies, df_former_sparse], axis=1)
+
+# save data for modelling:
+df_all.to_csv("C:/Users/test/Documents/GitHub/bachelorarbeit/_climate_change_mitigation/data/processed/berlin_num_imputed_clean_modelling.csv", index = False)
+
+
+stop = datetime.now()
+print(str(stop - start)) #just4fun
