@@ -1,10 +1,10 @@
-#Dauer: 0:23:31.99
-
 import numpy as np
 import pandas as pd
 import re
 from datetime import datetime
 from scipy import stats
+from text_prep import adder
+
 from datetime import datetime
 
 start = datetime.now()
@@ -18,25 +18,23 @@ df = df.drop(['Unnamed: 0'], axis=1)
 #Spalten. ich 'save' ein paar. U.a. Grund: Fehler treten auf, wenn als float importiert. 
 
 saver = ['year_built','last_renovated','latitude', 'longitude', 'description', 'equipment', 'description_main', 
-            'description_equipment', 'description_location', 'description_misc', 'energy_sources','bedrooms','bathrooms']
+        'description_equipment', 'description_location', 'description_misc', 'energy_sources','bedrooms','bathrooms']
 
-df_saver = df[saver]
+# df_saver = df[saver]
 
-df = df.drop(saver, axis=1)
-df = df.astype('str') 
+# df = df.drop(saver, axis=1)
+# df = df.astype('str') 
 
-df = df.apply(lambda x: x.str.replace('.',''))
-df = df.apply(lambda x: x.str.replace(',','.'))
+# df = df.apply(lambda x: x.str.replace('.',''))
+# df = df.apply(lambda x: x.str.replace(',','.'))
 
-df = pd.concat([df, df_saver],axis=1).reset_index()
+# df = pd.concat([df, df_saver],axis=1).reset_index()
 
 
-# Aus 'Floor' mehrere Spalten machen. floor_max ist oft NaN. Dafür -1.
+# Aus 'Floor' mehrere Spalten machen. 
 
 subset = df['floor'].str.split(' ', expand=True)
-
 subset.columns = ['floor_act', 'useless', 'floor_max']
-subset['floor_max'].fillna(value=np.nan, inplace=True)
 subset = subset.drop('useless', axis=1).astype(float)             
 
 df = pd.concat([df, subset], axis=1).drop('floor', axis=1)
@@ -44,12 +42,9 @@ df = pd.concat([df, subset], axis=1).drop('floor', axis=1)
 
 # Zielvariable erstellen und formatieren: 'energy_consumption_value'
 
-subset = df['energy_consumption_value'].str.split(' ', expand=True)
-subset.columns = ['energy_consumption', 'useless']
-subset.energy_consumption = subset.energy_consumption.astype(float)
-subset = subset.drop('useless', axis=1)
+df['energy_consumption'] = df['energy_consumption_value'].str.strip(" kWh/(m²*a)").str.replace(',','.').astype('float')
+df = df.drop(['energy_consumption_value'],axis=1)
 
-df = pd.concat([df, subset], axis=1).drop(['energy_consumption_value'], axis=1)
 
 
 # Die Spalte 'city-code' erstellen aus'Address_2' und die dann fallen lassen.
@@ -59,53 +54,15 @@ df['city_code'] = subset[0].astype(int)
 df = df.drop('address_2', axis=1)
 
 
-# Total unnütze Spalten droppen
-
-df = df.drop(['index', 'expose_id', 'city', 'title', 'address_1'], axis=1)
-
 
 # Alle Text-Cols auf Dopplungen Testen und bereinigen als Prep für NLP:
-
-def adder(s1, s2):
-    '''
-    Öffnet eine leere Liste.
-    Rechnet mit 2 pd.Series. Prüft diese Zeilenweise, ob sie identisch sind.
-    Wenn ja, kopiert sie den Inhalt von der ersten Serie in die leere
-    Serie.
-    Wenn nein, kopiert sie den Inhalt der ersten plus zweiten Serie in
-    dei leere Liste.
-    Wenn es keine Inhalte gibt, kommt ein Nan-Wert an dem Index in die
-    leere Serie.
-    Der Rückgabewert ist die vormals leere Liste als Serie.
-    '''
-    liste = []
-
-    checker = s1 == s2  # boolean filter
-    nan_checker_s1 = s1.isna()
-
-    for i in range(len(checker)):
-        if checker[i]:  # equals checker[i] == True
-
-            if nan_checker_s1[i]:
-                liste.append(s2[i])
-            else:
-                liste.append(s1[i])
-
-        else:
-            liste.append(s1[i] + s2[i])
-
-    serie = pd.Series(liste).astype(str)
-
-    return (serie)
 
 cols_with_duplicates = [('description', 'description_main'), #Liste durch händisches prüfen ermittelt. 
                         ('equipment', 'description_equipment')]
 
 for i, j in cols_with_duplicates:
-    df[i + '_clear'] = adder(df[i], df[j])
+    df[i + '_clear'] = adder(df[i], df[j]) #funktion in anderem Skript: text_prep.py
     df = df.drop([i, j], axis=1)
-
-
 
 
 # Categorials finden und aggregieren. Alle datentypen korrigieren.
@@ -222,83 +179,77 @@ df = pd.concat([df,final], axis = 1)
 df = df.drop('parking', axis = 1)
 
 
-# Categorial 2: 'energy_sources' - Rausgenommen, weil wichtige Var...bzw eine mit 'ner erwähnenswerten Korrelation. 
-# energy_sources aufräumen, indem die Doppelten Energiequelllen gedropped werden. 
+# Categorial 2: 'energy_sources', indem die doppelten Energiequelllen gedropped werden. 
 
-# filter_list = ['Gas, Fernwärme', 'Gas, Öl', 'Erdwärme, Gas', 'Öl, Fernwärme', 'Gas, Erdgas leicht']
-
-# for value in filter_list:
-#     for row in range(len(df)):
-#         if df.loc[row, 'energy_sources'] == value:
-#             df.drop([row], inplace=True)
-#     df=df.reset_index(drop=True)
+filter_object = df.energy_sources.str.contains('Gas, Fernwärme|Erdwärme, Gas|Gas, Öl|Öl, Fernwärme|Gas, Erdgas leicht', na=False, regex = True)
+df.drop(df[filter_object].index, axis=0, inplace=True)
 
 
-# Categorial 3: ground_plan -> Binär machen. Verworfen.
-# binary = {'yes': 1,
-#           'no': 0}
+# Categorial 3: Ausprägungen reduzieren
+binary = {'yes': 'yes'}
+df['ground_plan'] = df['ground_plan'].map(binary)
 
-# df['ground_plan'] = df['ground_plan'].map(binary)
-
-
-# drop von 'energy' und 'energy_certificate'. Grund: Keine Annonce hat kein Zertifikat weil Gesetz
-df = df.drop(['energy', 'energy_certificate'], axis=1)
 
 
 # 'hot_water' zu 'hot_water_included'
-binary = {'Energieverbrauch für Warmwasser enthalten': 'yes',
-          'nan': 'no'} 
+binary = {'Energieverbrauch für Warmwasser enthalten': 'yes'} 
 
 df['hot_water_included'] = df['hot_water'].map(binary)
 df = df.drop(['hot_water'], axis=1)
 
 
-# 'deposit' cleanen: ICH SCHMEIßE ES RAUS. Ist stark mit 'rent' correliert
+# 'deposit' säubern: Drop. Ist stark mit 'rent' korreliert.
 df = df.drop(['deposit'], axis=1)
 
+# Drop useless cols
+df.drop(['expose_id','city','address_1'], axis=1, inplace=True)
 
-# 'nan' zu np.nan. Da ging irgendwo was schief. 
-df.replace('nan',np.nan, inplace=True)
 
-# Categorials, Numericals und reiner Text identifizieren (by hand)
+# fix dtypes and formats (and check the rooms)
 
-text = ['description_misc','description_clear','equipment_clear','description_location']
+text = ['description_misc','description_clear','equipment_clear','description_location', 'title']
 
 categorials = ['type','pets','condition','quality_of_appliances',
                 'heating_type','energy_certificate_type','ground_plan',
                 'energy_sources','parking_kind','hot_water_included',
-                'city_code']
+                'city_code','energy', 'energy_certificate']
 
 numericals = ['energy_consumption','rent','utilities_cost','heating_cost','cost_total',
                 'area','rooms','bedrooms','bathrooms','year_built',
                 'last_renovated','latitude','longitude','floor_act',
                 'floor_max','parking_spaces']
 
+# print(len(text) + len(categorials) + len(numericals) == len(df.columns))
+# print(df.rent.value_counts(dropna=False).head(30))
+# print(df.rent.value_counts(dropna=False).tail(30))
+# exit() -> passt. 
 
-# Fillna w/ median & Kill numeric outliers: 
-df_numeric = df[numericals].apply(pd.to_numeric, errors='coerce').fillna(df.median()) 
+float_liste = ['rent', 'rooms', 'utilities_cost','heating_cost','cost_total','area']
 
-df_num_imputed_clean_all = df[(np.abs(stats.zscore(df_numeric, nan_policy='omit')) < 5).all(axis=1)]
-df_num_imputed_clean_nums = df_num_imputed_clean_all[numericals].apply(pd.to_numeric, errors='coerce')
-
-df_num_imputed_clean_nums[numericals] = df_num_imputed_clean_nums[numericals].fillna(df_num_imputed_clean_nums.median())
-
-
-# Transform nums to integer if possible:
-integers = ['bedrooms','bathrooms','year_built','last_renovated','floor_act','floor_max','parking_spaces']
-
-for col in integers:
-    df_num_imputed_clean_nums[col] = df_num_imputed_clean_nums[col].astype(int)
-
-df_num_imputed_clean_all[numericals] = df_num_imputed_clean_nums[numericals]
+for col in float_liste: #Format: '1.000,00'. Problem: '1,000'->*1000 & '1000.00'->/100
+    df[col] = df[col].str.replace('.','', regex = True).str.replace(',','.', regex = True).astype('float')
 
 
-#reset index
-df_num_imputed_clean_all = df_num_imputed_clean_all.reset_index().drop(['index'], axis=1)
+
+for col in categorials:
+    df[col] = df[col].astype('category')
+
+
+# rearange and reindex:
+
+df = pd.concat([df[numericals],df[categorials],df[text]], axis=1)
+df = df.reset_index(drop=True)
+
+
+#NOTIZEN: Also, die Daten sind sauber, aber voller Ausreisser wegen der komma-punkt-formatierungen. Morgen früh beheben. 
 
 
 # Save clean and partially imputed data for EDA:
-df_num_imputed_clean_all.to_csv("C:/Users/test/Documents/GitHub/bachelorarbeit/_climate_change_mitigation/data/processed/berlin_num_imputed_clean_EDA.csv", index = False)
+df.to_csv("C:/Users/test/Documents/GitHub/bachelorarbeit/_climate_change_mitigation/data/processed/berlin_clean_EDA.csv", index = False)
+
+
+print(df.info())
+exit()
 
 # =========================
 
@@ -366,7 +317,7 @@ df_former_sparse = pd.DataFrame.sparse.from_spmatrix(annonces_tfidf)
 df_all = pd.concat([df_num, df_categorials_dummies, df_former_sparse], axis=1)
 
 # save data for modelling:
-df_all.to_csv("C:/Users/test/Documents/GitHub/bachelorarbeit/_climate_change_mitigation/data/processed/berlin_num_imputed_clean_modelling.csv", index = False)
+df_all.to_csv("C:/Users/test/Documents/GitHub/bachelorarbeit/_climate_change_mitigation/data/processed/berlin_clean_modelling.csv", index = False)
 
 
 stop = datetime.now()
