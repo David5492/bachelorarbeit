@@ -26,7 +26,7 @@ from datetime import datetime
 start = datetime.now()
 
 # Load data
-df= pd.read_csv("C:/Users/test/Documents/GitHub/bachelorarbeit/_climate_change_mitigation/data/processed/berlin_clean_EDA.csv")
+df= pd.read_csv("C:/Users/test/Documents/GitHub/bachelorarbeit/_climate_change_mitigation/data/interim/berlin_clean.csv")
 
 # define subset lists
 text = ['description_misc','description_clear','equipment_clear','description_location', 'title']
@@ -87,6 +87,11 @@ for col in df_num.columns:
     masked_array = winsorize(df_num[col], limits =[0.005,0.005])
     df_num[col] = pd.DataFrame(masked_array, columns = [col])
 
+# Save data for EDA:
+df_EDA = pd.concat([df_num, df[categorials], df_text], axis=1)
+df_EDA = df_EDA.reset_index(drop=True)
+df_EDA.to_csv("C:/Users/test/Documents/GitHub/bachelorarbeit/_climate_change_mitigation/data/processed/berlin_preprocessed_EDA.csv", index = False)
+
 
 # NLP:
 
@@ -134,7 +139,7 @@ df_former_sparse = pd.DataFrame.sparse.from_spmatrix(annonces_tfidf)
 
 # concat all sub-dfs
 df_all = pd.concat([df_num, df_categorials_dummies, df_former_sparse], axis=1)
-df = df.reset_index(drop=True)
+df_all = df_all.reset_index(drop=True)
 
 # save data for modelling:
 df_all.to_csv("C:/Users/test/Documents/GitHub/bachelorarbeit/_climate_change_mitigation/data/processed/berlin_preprocessed.csv", index = False)

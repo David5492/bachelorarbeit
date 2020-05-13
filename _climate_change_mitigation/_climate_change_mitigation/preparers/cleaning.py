@@ -208,7 +208,7 @@ df = df.reset_index(drop=True)
 
 
 # Save clean and partially imputed data for EDA:
-df.to_csv("C:/Users/test/Documents/GitHub/bachelorarbeit/_climate_change_mitigation/data/processed/berlin_clean_EDA.csv", index = False)
+df.to_csv("C:/Users/test/Documents/GitHub/bachelorarbeit/_climate_change_mitigation/data/interim/berlin_clean.csv", index = False)
 
 
 print(df.info())
